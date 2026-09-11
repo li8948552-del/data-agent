@@ -27,20 +27,44 @@ public class TextToSqlAgent {
     }
 
     public AgentAnswer ask(String question) {
+        return ask(question, AgentProgressListener.noop());
+    }
+
+    public AgentAnswer ask(String question, AgentProgressListener listener) {
+        listener.onEvent("schema", "Inspecting database schema");
         Map<String, List<String>> schema = schemaService.compactSchema();
+
+        listener.onEvent("retrieval", "Retrieving business context");
         String context = knowledgeService.contextFor(question);
+        listener.onEvent("context", context);
+
+        listener.onEvent("sql_generation", "Generating SQL");
         String sql = generateSql(question, schema, context);
+        listener.onEvent("sql", cleanSql(sql));
         String lastError = null;
 
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
+                listener.onEvent("sql_execution", Map.of("attempt", attempt, "sql", cleanSql(sql)));
                 ReadOnlySqlExecutor.QueryResult result = executor.execute(cleanSql(sql));
+                listener.onEvent("rows", result.rows());
+
+                listener.onEvent("explanation", "Generating grounded explanation");
                 String explanation = explain(question, cleanSql(sql), result, context);
-                return new AgentAnswer(question, cleanSql(sql), result.rows(), explanation, context, attempt);
+                AgentAnswer answer = new AgentAnswer(question, cleanSql(sql), result.rows(), explanation, context, attempt);
+                listener.onEvent("complete", answer);
+                return answer;
             } catch (RuntimeException ex) {
                 lastError = ex.getMessage();
+                listener.onEvent("sql_error", Map.of(
+                        "attempt", attempt,
+                        "message", lastError == null ? ex.getClass().getSimpleName() : lastError
+                ));
                 if (attempt == MAX_ATTEMPTS) break;
+
+                listener.onEvent("sql_repair", Map.of("nextAttempt", attempt + 1));
                 sql = repairSql(question, schema, context, sql, lastError);
+                listener.onEvent("sql", cleanSql(sql));
             }
         }
 
