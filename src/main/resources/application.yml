@@ -9,6 +9,12 @@ spring:
     username: ${DB_USER:data_agent}
     password: ${DB_PASSWORD:data_agent}
 
+agent:
+  llm:
+    base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+    api-key: ${LLM_API_KEY:}
+    model: ${LLM_MODEL:gpt-5.6}
+
 management:
   endpoints:
     web:
