@@ -10,7 +10,7 @@ Build the complete agent incrementally:
 
 `Question → Schema/RAG context → SQL generation → Validation → Execution → Self-correction → Python analysis → Explanation`
 
-## Current milestone — M5
+## Current milestone — M6
 
 The project now includes:
 
@@ -22,6 +22,9 @@ The project now includes:
 - automatic SQL repair and retry
 - pgvector RAG for business definitions/rules
 - Docker-isolated Python analysis with no network, read-only filesystem, memory/CPU/PID limits and timeout
+- SSE progress streaming
+- lightweight browser UI
+- deterministic SQL evaluation utilities and reusable evaluation cases
 - GitHub Actions CI
 
 ## Run locally
@@ -42,10 +45,10 @@ export LLM_MODEL='gpt-5.6'
 export EMBEDDING_MODEL='text-embedding-3-small'
 ```
 
-Health check:
+Open the browser UI at:
 
-```bash
-curl http://localhost:9933/api/agent/health
+```text
+http://localhost:9933/
 ```
 
 Ask a Text-to-SQL question:
@@ -54,6 +57,12 @@ Ask a Text-to-SQL question:
 curl -X POST http://localhost:9933/api/agent/ask \
   -H 'Content-Type: application/json' \
   -d '{"question":"Which region generated the most revenue?"}'
+```
+
+Stream agent progress with SSE:
+
+```bash
+curl -N 'http://localhost:9933/api/agent/stream?question=Which%20region%20generated%20the%20most%20revenue%3F'
 ```
 
 Run the deeper SQL + Python analysis pipeline:
@@ -66,14 +75,22 @@ curl -X POST http://localhost:9933/api/agent/analyze \
 
 The Python stage is not executed directly on the application host. Generated code runs in an ephemeral Docker container configured with no network, a read-only root filesystem, dropped Linux capabilities, PID/CPU/memory limits and a hard timeout.
 
+## Evaluation
+
+The repository includes deterministic SQL structure checks plus reusable evaluation cases under `src/test/resources/eval/cases.json`. These are designed to catch missing tables/aggregations and unsafe SQL tokens without requiring paid LLM calls in CI.
+
+```bash
+mvn test
+```
+
 ## Roadmap
 
 1. **M1 — Agent scaffold + HITL plan** ✅
 2. **M2 — Schema introspection + read-only SQL executor** ✅
 3. **M3 — LLM Text-to-SQL + validation/self-correction** ✅
 4. **M4 — pgvector RAG for business context** ✅
-5. **M5 — isolated Python sandbox for deeper analysis** 🚧
-6. **M6 — SSE streaming UI + evaluation suite**
+5. **M5 — isolated Python sandbox for deeper analysis** ✅
+6. **M6 — SSE streaming UI + evaluation suite** 🚧
 
 ## Architecture principle
 
