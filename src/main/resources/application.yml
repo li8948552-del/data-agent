@@ -1,0 +1,16 @@
+server:
+  port: ${PORT:9933}
+
+spring:
+  application:
+    name: data-agent
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/data_agent}
+    username: ${DB_USER:data_agent}
+    password: ${DB_PASSWORD:data_agent}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
