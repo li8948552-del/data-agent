@@ -1,6 +1,7 @@
 package dev.hexin.dataagent.agent;
 
 import dev.hexin.dataagent.llm.LlmClient;
+import dev.hexin.dataagent.rag.KnowledgeService;
 import dev.hexin.dataagent.sql.ReadOnlySqlExecutor;
 import dev.hexin.dataagent.sql.SchemaService;
 import org.junit.jupiter.api.Test;
@@ -21,12 +22,16 @@ class TextToSqlAgentTest {
     }
 
     @Test
-    void repairsFailedSqlAndRetries() {
+    void repairsFailedSqlAndRetriesWithRetrievedContext() {
         SchemaService schema = mock(SchemaService.class);
         ReadOnlySqlExecutor executor = mock(ReadOnlySqlExecutor.class);
         LlmClient llm = mock(LlmClient.class);
+        KnowledgeService knowledge = mock(KnowledgeService.class);
 
         when(schema.compactSchema()).thenReturn(Map.of("orders", List.of("id", "amount")));
+        when(knowledge.contextFor("What is the amount?"))
+                .thenReturn("Revenue means SUM(orders.amount).");
+
         AtomicInteger llmCalls = new AtomicInteger();
         when(llm.generate(anyString(), anyString())).thenAnswer(invocation -> switch (llmCalls.getAndIncrement()) {
             case 0 -> "SELECT missing FROM orders";
@@ -39,12 +44,14 @@ class TextToSqlAgentTest {
         when(executor.execute("SELECT amount FROM orders"))
                 .thenReturn(new ReadOnlySqlExecutor.QueryResult(List.of(Map.of("amount", 10)), 1, false));
 
-        TextToSqlAgent agent = new TextToSqlAgent(schema, executor, llm);
+        TextToSqlAgent agent = new TextToSqlAgent(schema, executor, llm, knowledge);
         TextToSqlAgent.AgentAnswer answer = agent.ask("What is the amount?");
 
         assertEquals("SELECT amount FROM orders", answer.sql());
         assertEquals(2, answer.attempts());
         assertEquals("The amount is 10.", answer.explanation());
+        assertEquals("Revenue means SUM(orders.amount).", answer.retrievedContext());
         verify(executor, times(2)).execute(anyString());
+        verify(knowledge).contextFor("What is the amount?");
     }
 }
