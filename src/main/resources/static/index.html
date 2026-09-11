@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Data Agent</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f7f7f8; color: #202124; }
+    main { max-width: 900px; margin: 48px auto; padding: 0 20px; }
+    .card { background: white; border: 1px solid #e5e7eb; border-radius: 16px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,.04); }
+    textarea { width: 100%; min-height: 90px; resize: vertical; box-sizing: border-box; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; font: inherit; }
+    button { margin-top: 12px; padding: 10px 16px; border: 0; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #111827; color: #f9fafb; border-radius: 12px; padding: 14px; overflow: auto; }
+    .stage { padding: 10px 12px; margin-top: 10px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fafafa; }
+    .name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Data Agent</h1>
+  <p>Stream a Text-to-SQL run: schema → RAG context → SQL → execution → correction → answer.</p>
+  <div class="card">
+    <textarea id="question">Which region generated the most revenue?</textarea>
+    <button id="run">Run agent</button>
+    <div id="events"></div>
+  </div>
+</main>
+<script>
+const button = document.getElementById('run');
+const question = document.getElementById('question');
+const events = document.getElementById('events');
+let source;
+
+function addEvent(name, data) {
+  const div = document.createElement('div');
+  div.className = 'stage';
+  const label = document.createElement('div');
+  label.className = 'name';
+  label.textContent = name;
+  const pre = document.createElement('pre');
+  try { pre.textContent = JSON.stringify(JSON.parse(data), null, 2); }
+  catch { pre.textContent = data; }
+  div.append(label, pre);
+  events.appendChild(div);
+}
+
+button.addEventListener('click', () => {
+  if (source) source.close();
+  events.innerHTML = '';
+  const q = question.value.trim();
+  if (!q) return;
+
+  source = new EventSource('/api/agent/stream?question=' + encodeURIComponent(q));
+  const names = ['schema','retrieval','context','sql_generation','sql','sql_execution','rows','sql_error','sql_repair','explanation','complete','error'];
+  names.forEach(name => source.addEventListener(name, e => {
+    addEvent(name, e.data);
+    if (name === 'complete' || name === 'error') source.close();
+  }));
+});
+</script>
+</body>
+</html>
