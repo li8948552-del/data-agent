@@ -8,19 +8,21 @@ A learning-focused **Text-to-SQL Agent** built from scratch with Spring Boot and
 
 Build the complete agent incrementally:
 
-`Question → Plan → Human approval → Schema context → SQL generation → Validation → Execution → Correction → Explanation`
+`Question → Schema/RAG context → SQL generation → Validation → Execution → Self-correction → Python analysis → Explanation`
 
-Later milestones add RAG, embeddings, Python sandbox analysis and streaming responses.
+## Current milestone — M5
 
-## Current milestone — M1
+The project now includes:
 
 - Spring Boot 3 / Java 21 backend
 - PostgreSQL + pgvector local environment
-- sample analytics database
-- `/api/agent/health`
-- `/api/agent/plan` endpoint
-- explicit `AWAITING_APPROVAL` state as the first Human-in-the-Loop boundary
-- environment-based database configuration
+- schema introspection
+- guarded read-only SQL execution
+- LLM-powered Text-to-SQL generation
+- automatic SQL repair and retry
+- pgvector RAG for business definitions/rules
+- Docker-isolated Python analysis with no network, read-only filesystem, memory/CPU/PID limits and timeout
+- GitHub Actions CI
 
 ## Run locally
 
@@ -28,7 +30,16 @@ Requirements: Java 21, Maven, Docker.
 
 ```bash
 docker compose up -d
+export LLM_API_KEY='your-key'
 mvn spring-boot:run
+```
+
+Optional model configuration:
+
+```bash
+export LLM_BASE_URL='https://api.openai.com/v1'
+export LLM_MODEL='gpt-5.6'
+export EMBEDDING_MODEL='text-embedding-3-small'
 ```
 
 Health check:
@@ -37,26 +48,36 @@ Health check:
 curl http://localhost:9933/api/agent/health
 ```
 
-Create a plan:
+Ask a Text-to-SQL question:
 
 ```bash
-curl -X POST http://localhost:9933/api/agent/plan \
+curl -X POST http://localhost:9933/api/agent/ask \
   -H 'Content-Type: application/json' \
   -d '{"question":"Which region generated the most revenue?"}'
 ```
 
+Run the deeper SQL + Python analysis pipeline:
+
+```bash
+curl -X POST http://localhost:9933/api/agent/analyze \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Compare revenue concentration across regions and summarize the pattern."}'
+```
+
+The Python stage is not executed directly on the application host. Generated code runs in an ephemeral Docker container configured with no network, a read-only root filesystem, dropped Linux capabilities, PID/CPU/memory limits and a hard timeout.
+
 ## Roadmap
 
-1. **M1 — Agent scaffold + HITL plan**
-2. **M2 — Schema introspection + read-only SQL executor**
-3. **M3 — LLM Text-to-SQL + validation/self-correction**
-4. **M4 — RAG for schema/business context**
-5. **M5 — Python sandbox for deeper analysis**
+1. **M1 — Agent scaffold + HITL plan** ✅
+2. **M2 — Schema introspection + read-only SQL executor** ✅
+3. **M3 — LLM Text-to-SQL + validation/self-correction** ✅
+4. **M4 — pgvector RAG for business context** ✅
+5. **M5 — isolated Python sandbox for deeper analysis** 🚧
 6. **M6 — SSE streaming UI + evaluation suite**
 
 ## Architecture principle
 
-The model never receives unrestricted database write access. SQL execution will be isolated behind a read-only validation/execution layer, and high-impact steps are designed to expose explicit human approval points.
+The model never receives unrestricted database write access. SQL is isolated behind a read-only validation/execution layer. Python is isolated in a constrained Docker container rather than executed in the application JVM or host shell.
 
 ## Attribution
 
