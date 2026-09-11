@@ -1,0 +1,23 @@
+[
+  {
+    "id": "revenue-by-region",
+    "question": "Which region generated the most revenue?",
+    "requiredTables": ["orders", "customers"],
+    "requiredTokens": ["sum(", "group by", "region"],
+    "forbiddenTokens": ["delete", "update", "drop"]
+  },
+  {
+    "id": "customer-order-count",
+    "question": "How many orders does each customer have?",
+    "requiredTables": ["orders", "customers"],
+    "requiredTokens": ["count(", "group by"],
+    "forbiddenTokens": ["insert", "delete", "update"]
+  },
+  {
+    "id": "recent-revenue",
+    "question": "What revenue was generated in the last 3 days?",
+    "requiredTables": ["orders"],
+    "requiredTokens": ["sum(", "created_at"],
+    "forbiddenTokens": ["drop", "truncate", "alter"]
+  }
+]
