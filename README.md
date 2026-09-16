@@ -57,7 +57,11 @@ flowchart LR
 
 ## Demo
 
-Start with a business question:
+A successful end-to-end run showing schema inspection, business-context retrieval, SQL generation, guarded execution, result retrieval and grounded explanation.
+
+![Data Agent end-to-end demo](docs/images/data-agent-demo.png)
+
+Example question:
 
 ```text
 Which region generated the most revenue?
