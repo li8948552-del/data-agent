@@ -1,18 +1,14 @@
 # Data Agent
 
-A learning-focused **Text-to-SQL Agent** built from scratch with Spring Boot and PostgreSQL/pgvector.
+An end-to-end **Text-to-SQL analytics agent** built with Spring Boot, PostgreSQL and pgvector.
 
 > This repository is an original implementation inspired by common Data Agent architecture patterns. It does not copy source code from third-party tutorial repositories.
 
-## Goal
-
-Build the complete agent incrementally:
+## Pipeline
 
 `Question → Schema/RAG context → SQL generation → Validation → Execution → Self-correction → Python analysis → Explanation`
 
-## Current milestone — M6
-
-The project now includes:
+## Features
 
 - Spring Boot 3 / Java 21 backend
 - PostgreSQL + pgvector local environment
@@ -23,13 +19,14 @@ The project now includes:
 - pgvector RAG for business definitions/rules
 - Docker-isolated Python analysis with no network, read-only filesystem, memory/CPU/PID limits and timeout
 - SSE progress streaming
-- lightweight browser UI
+- browser demo UI
 - deterministic SQL evaluation utilities and reusable evaluation cases
 - GitHub Actions CI
+- production-style Docker image
 
-## Run locally
+## Quick start
 
-Requirements: Java 21, Maven, Docker.
+Requirements: Java 21, Maven and Docker.
 
 ```bash
 docker compose up -d
@@ -37,19 +34,23 @@ export LLM_API_KEY='your-key'
 mvn spring-boot:run
 ```
 
-Optional model configuration:
+Optional configuration is documented in `.env.example`.
 
-```bash
-export LLM_BASE_URL='https://api.openai.com/v1'
-export LLM_MODEL='gpt-5.6'
-export EMBEDDING_MODEL='text-embedding-3-small'
-```
-
-Open the browser UI at:
+Open:
 
 ```text
 http://localhost:9933/
 ```
+
+Try:
+
+```text
+Which region generated the most revenue?
+```
+
+The browser streams the agent's intermediate stages so schema retrieval, SQL generation, execution, repair and explanation are visible rather than hidden behind a loading spinner.
+
+## API examples
 
 Ask a Text-to-SQL question:
 
@@ -59,7 +60,7 @@ curl -X POST http://localhost:9933/api/agent/ask \
   -d '{"question":"Which region generated the most revenue?"}'
 ```
 
-Stream agent progress with SSE:
+Stream progress with SSE:
 
 ```bash
 curl -N 'http://localhost:9933/api/agent/stream?question=Which%20region%20generated%20the%20most%20revenue%3F'
@@ -73,28 +74,43 @@ curl -X POST http://localhost:9933/api/agent/analyze \
   -d '{"question":"Compare revenue concentration across regions and summarize the pattern."}'
 ```
 
-The Python stage is not executed directly on the application host. Generated code runs in an ephemeral Docker container configured with no network, a read-only root filesystem, dropped Linux capabilities, PID/CPU/memory limits and a hard timeout.
+## Container image
+
+Build the application image:
+
+```bash
+docker build -t data-agent .
+```
+
+The image uses a Maven build stage and a Java 21 runtime stage, and the application process runs as a non-root user.
+
+> The optional Python-analysis stage itself launches constrained Docker containers, so that feature requires access to a Docker daemon. The core Text-to-SQL flow does not require host Python execution.
 
 ## Evaluation
 
-The repository includes deterministic SQL structure checks plus reusable evaluation cases under `src/test/resources/eval/cases.json`. These are designed to catch missing tables/aggregations and unsafe SQL tokens without requiring paid LLM calls in CI.
+Reusable evaluation cases live under `src/test/resources/eval/cases.json`. CI checks SQL structure and safety without requiring paid LLM calls.
 
 ```bash
 mvn test
 ```
 
-## Roadmap
+## Milestones
 
 1. **M1 — Agent scaffold + HITL plan** ✅
 2. **M2 — Schema introspection + read-only SQL executor** ✅
 3. **M3 — LLM Text-to-SQL + validation/self-correction** ✅
 4. **M4 — pgvector RAG for business context** ✅
 5. **M5 — isolated Python sandbox for deeper analysis** ✅
-6. **M6 — SSE streaming UI + evaluation suite** 🚧
+6. **M6 — SSE streaming UI + evaluation suite** ✅
+7. **M7 — demo/packaging hardening** 🚧
 
-## Architecture principle
+## Safety architecture
 
-The model never receives unrestricted database write access. SQL is isolated behind a read-only validation/execution layer. Python is isolated in a constrained Docker container rather than executed in the application JVM or host shell.
+The model never receives unrestricted database write access. SQL is isolated behind validation and a read-only execution layer. Generated Python is isolated in a constrained Docker container rather than executed in the application JVM or directly on the host.
+
+## Demo and interview walkthrough
+
+See `docs/DEMO.md` for a 90-second demo flow, architecture explanation, interview framing and known production limitations.
 
 ## Attribution
 
